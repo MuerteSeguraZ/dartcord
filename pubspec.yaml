@@ -1,0 +1,12 @@
+name: dartcord
+description: Discord API wrapper for Dart
+version: 1.0.0
+authors:
+  - MuerteSeguraZ
+  - jollystreerzus
+environment:
+  sdk: '>=2.17.0 <4.0.0'
+
+dependencies:
+  http: ^1.2.0
+  web_socket_channel: ^2.4.0
