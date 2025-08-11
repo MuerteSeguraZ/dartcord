@@ -1,103 +1,129 @@
-# DiscordRest Dart Library
+# DartCord Dart Library
 
-`DiscordRest` is a Dart class that provides convenient methods to interact with the Discord REST API for managing messages, reactions, guilds, roles, and channels. It is designed to be used alongside a `DiscordGateway` class to handle caching and real-time events.
+`DartCord` is a Dart package for interacting with the Discord API, combining REST methods with gateway events for real-time Discord bot development.
 
 ## Features
 
-- Send, fetch, edit, and delete messages in channels
-- Add and remove reactions on messages
-- Retrieve guild information, members, channels, and roles
-- Create, modify, and delete roles
-- Assign and remove roles for guild members
-- Create, modify, and delete channels
+* Send, fetch, edit, and delete messages
+* Add and remove reactions
+* Manage guilds, members, channels, and roles
+* Create, modify, and delete roles and channels
+* Listen to Discord gateway events like messages and bot readiness
 
 ## Requirements
 
-- Dart SDK
-- `http` package for making HTTP requests
+* Dart SDK
+* `http` package (handled internally)
+* A `DiscordBot` instance to handle gateway connection and caching
 
 ## Usage
 
 ### Initialization
 
 ```dart
-final discordRest = DiscordRest(botToken, discordGatewayInstance);
-````
+import 'package:dartcord/dartcord.dart';
 
-* `botToken`: Your Discord bot token as a string.
-* `discordGatewayInstance`: An instance of your `DiscordGateway` class, used for caching and gateway communication.
+void main() async {
+  final bot = DiscordBot(
+    "YOUR_BOT_TOKEN_HERE",
+  );
 
-### Examples
+  // Event: When bot is ready
+  bot.onReady(([_]) {
+    print("✅ Logged in!");
+  });
 
-#### Sending a Message
+  // Event: On message received
+  bot.onMessage(([msg]) async {
+    final content = msg['content'] ?? '';
+    final author = msg['author']['username'];
+    final channelId = msg['channel_id'];
 
-```dart
-await discordRest.sendMessage('channelId', 'Hello, world!');
+    print("$author: $content");
+
+    if (content == "!ping") {
+      await bot.rest.sendMessage(channelId, "🏓 Pong!");
+    }
+
+    // ... additional commands and examples here ...
+  });
+
+  // Connect the bot (usually needed, depending on your lib design)
+  await bot.connect();
+}
 ```
 
-#### Fetching Messages
+### Example Commands
 
 ```dart
-List<dynamic> messages = await discordRest.fetchMessages('channelId', limit: 100);
+bot.onMessage(([msg]) async {
+  final content = msg['content'] ?? '';
+  final channelId = msg['channel_id'];
+
+  if (content.startsWith("!say ")) {
+    final message = content.substring(5);
+    await bot.rest.sendMessage(channelId, message);
+  } else if (content.startsWith("!edit ")) {
+    final parts = content.split(" ");
+    if (parts.length >= 3) {
+      final messageId = parts[1];
+      final newContent = parts.sublist(2).join(" ");
+      await bot.rest.editMessage(channelId, messageId, newContent);
+    }
+  } else if (content.startsWith("!delete ")) {
+    final parts = content.split(" ");
+    if (parts.length == 2) {
+      final messageId = parts[1];
+      await bot.rest.deleteMessage(channelId, messageId);
+    }
+  } else if (content == "!embed") {
+    await bot.rest.sendMessage(
+      channelId,
+      "",
+      embeds: [
+        {
+          "title": "Test Embed",
+          "description": "This is a test embed message from DartCord.",
+          "color": 0x00FF00,
+          "fields": [
+            {"name": "Field 1", "value": "Value 1", "inline": true},
+            {"name": "Field 2", "value": "Value 2", "inline": true},
+          ],
+          "footer": {"text": "Footer text"},
+        }
+      ],
+    );
+  }
+});
 ```
 
-#### Deleting a Channel
+## API Highlights
+
+The REST API methods are accessed through the `rest` property on the `DiscordBot` instance:
 
 ```dart
-await discordRest.deleteChannel('channelId');
-```
+await bot.rest.sendMessage(channelId, "Hello!");
+final messages = await bot.rest.fetchMessages(channelId, limit: 100);
+await bot.rest.editMessage(channelId, messageId, "Updated!");
+await bot.rest.deleteMessage(channelId, messageId);
+await bot.rest.addReaction(channelId, messageId, "👍");
+await bot.rest.removeReaction(channelId, messageId, "👍");
 
-### Error Handling
+// Guild management
+final guild = await bot.rest.getGuild(guildId);
+final members = await bot.rest.getGuildMembers(guildId);
+final channels = await bot.rest.getGuildChannels(guildId);
+final roles = await bot.rest.getGuildRoles(guildId);
 
-All methods throw exceptions with descriptive messages when the Discord API responds with an error or unexpected status code.
+// Role management
+final newRole = await bot.rest.createRole(guildId, {"name": "New Role"});
+await bot.rest.modifyRole(guildId, newRole['id'], {"name": "Renamed Role"});
+await bot.rest.deleteRole(guildId, newRole['id']);
+await bot.rest.addRoleToMember(guildId, userId, newRole['id']);
+await bot.rest.removeRoleFromMember(guildId, userId, newRole['id']);
 
-## Method Overview
-
-### Message Management
-
-* `sendMessage(String channelId, String content, {List<Map<String, dynamic>>? embeds})`
-* `fetchMessages(String channelId, {int limit = 50})`
-* `editMessage(String channelId, String messageId, String newContent, {List<Map<String, dynamic>>? embeds})`
-* `deleteMessage(String channelId, String messageId)`
-
-### Reaction Management
-
-* `addReaction(String channelId, String messageId, String emoji)`
-* `removeReaction(String channelId, String messageId, String emoji)`
-
-### Guild Management
-
-* `getGuild(String guildId)`
-* `getGuildMembers(String guildId, {int limit = 1000, String? after})`
-* `getGuildChannels(String guildId)`
-* `getGuildRoles(String guildId)`
-* `getGuildMember(String guildId, String userId)`
-
-### Role Management
-
-* `createRole(String guildId, Map<String, dynamic> roleData)`
-* `modifyRole(String guildId, String roleId, Map<String, dynamic> roleData)`
-* `deleteRole(String guildId, String roleId)`
-* `addRoleToMember(String guildId, String userId, String roleId)`
-* `removeRoleFromMember(String guildId, String userId, String roleId)`
-
-### Channel Management
-
-* `createChannel(String guildId, Map<String, dynamic> channelData)`
-* `modifyChannel(String channelId, Map<String, dynamic> channelData)`
-* `deleteChannel(String channelId)`
-
-## Notes
-
-* Make sure your bot has the appropriate permissions for the actions you want to perform.
-* This class expects your `DiscordGateway` instance to implement a `removeChannel(String id)` method to handle cache cleanup on channel deletion.
-
-## License
-
-MIT License
-
----
-
-Feel free to contribute or open issues for bugs or feature requests!
-
+// Channel management
+final newChannel = await bot.rest.createChannel(guildId, {"name": "new-channel"});
+await bot.rest.modifyChannel(newChannel['id'], {"name": "renamed-channel"});
+await bot.rest.deleteChannel(newChannel['id']);
 ```
