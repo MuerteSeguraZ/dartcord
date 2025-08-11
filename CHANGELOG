@@ -1,0 +1,5 @@
+This will report the recent edits we made to the files in the Dartcord project. The edits include changes to the `lib/rest.dart`, `lib/client.dart` files, among others. 
+
+# CHANGES [11/08/2025]
+- Added a `DiscordGateway` instance to the `DiscordRest` class to handle gateway interactions.
+- Added channel management methods to the `DiscordRest` class, including `deleteChannel`, `createChannel`, and `modifyChannel`.

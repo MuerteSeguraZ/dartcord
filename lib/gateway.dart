@@ -40,7 +40,6 @@ class DiscordGateway {
     final d = event['d'];
     final s = event['s'];
 
-    // Update sequence number for resuming
     if (s != null) _lastSequence = s;
 
     switch (op) {
@@ -59,13 +58,12 @@ class DiscordGateway {
         print('Heartbeat acknowledged');
         break;
 
-      case 1: // Heartbeat request from server
+      case 1: // Heartbeat request
         _sendHeartbeat();
         break;
 
       case 0: // Dispatch
         _handleDispatch(t, d);
-        // Save session ID on READY event
         if (t == 'READY') {
           _sessionId = d['session_id'];
         }
@@ -80,9 +78,7 @@ class DiscordGateway {
         print('Invalid session, re-identifying...');
         _sessionId = null;
         _lastSequence = null;
-        Future.delayed(Duration(seconds: 5), () {
-          _identify();
-        });
+        Future.delayed(Duration(seconds: 5), _identify);
         break;
 
       default:
@@ -90,47 +86,80 @@ class DiscordGateway {
     }
   }
 
+  final Map<String, Map<String, dynamic>> _channels = {};
+
+  Map<String, Map<String, dynamic>> get channels => _channels;
+
   Future<void> _handleDispatch(String? type, dynamic data) async {
-  print("DISPATCH: $type");
-  if (type == 'READY') {
-    bot.triggerReady();
-  } else if (type == 'MESSAGE_CREATE') {
-    print("MESSAGE_CREATE: $data");
-    bot.triggerMessage(data);
-  } else if (type == 'MESSAGE_UPDATE') {
-    print("MESSAGE_UPDATE: $data");
-    bot.triggerMessageUpdate(data);
-  } else if (type == 'MESSAGE_REACTION_ADD') {
-    print("MESSAGE_REACTION_ADD: $data");
-    bot.triggerReactionAdd(data);
-  } else if (type == 'MESSAGE_REACTION_REMOVE') {
-    print("MESSAGE_REACTION_REMOVE: $data");
-    bot.triggerReactionRemove(data);
-  } else if (type == 'GUILD_ROLE_CREATE') {
-    print("GUILD_ROLE_CREATE: $data");
-    final guildId = data['guild_id'];
-    final roleData = data['role'];
-    print("Role created: ${roleData['name']} (ID: ${roleData['id']}) in guild $guildId");
-  } else if (type == 'GUILD_ROLE_UPDATE') {
-    print("GUILD_ROLE_UPDATE: $data");
-    final guildId = data['guild_id'];
-    final roleId = data['role']['id'];
-    final roleData = data['role'];
-    print("Role updated: ${roleData['name']} (ID: ${roleData['id']}) in guild $guildId");
-  } else if (type == 'GUILD_ROLE_DELETE') {
-    print("GUILD_ROLE_DELETE: $data");
-    final guildId = data['guild_id'];
-    final roleId = data['role_id'];
-    print("Role deleted: $roleId in guild $guildId");
+    print("DISPATCH: $type");
+    switch (type) {
+      case 'READY':
+        await bot.triggerReady();
+        break;
+      case 'MESSAGE_CREATE':
+        print("MESSAGE_CREATE: $data");
+        await bot.triggerMessage(data);
+        break;
+      case 'MESSAGE_UPDATE':
+        print("MESSAGE_UPDATE: $data");
+        await bot.triggerMessageUpdate(data);
+        break;
+      case 'MESSAGE_REACTION_ADD':
+        print("MESSAGE_REACTION_ADD: $data");
+        bot.triggerReactionAdd(data);
+        break;
+      case 'MESSAGE_REACTION_REMOVE':
+        print("MESSAGE_REACTION_REMOVE: $data");
+        bot.triggerReactionRemove(data);
+        break;
+      case 'GUILD_ROLE_CREATE':
+        print("GUILD_ROLE_CREATE: $data");
+        final guildId = data['guild_id'];
+        final roleData = data['role'];
+        print("Role created: ${roleData['name']} (ID: ${roleData['id']}) in guild $guildId");
+        break;
+      case 'GUILD_ROLE_UPDATE':
+        print("GUILD_ROLE_UPDATE: $data");
+        final guildId = data['guild_id'];
+        final roleData = data['role'];
+        print("Role updated: ${roleData['name']} (ID: ${roleData['id']}) in guild $guildId");
+        break;
+      case 'GUILD_ROLE_DELETE':
+        print("GUILD_ROLE_DELETE: $data");
+        final guildId = data['guild_id'];
+        final roleId = data['role_id'];
+        print("Role deleted: $roleId in guild $guildId");
+        break;
+      case 'CHANNEL_CREATE':
+        final channelId = data['id'];
+        _channels[channelId] = data;
+        print('Channel created: ${data['name']} (ID: $channelId)');
+        bot.triggerChannelCreate(data);
+        break;
+      case 'CHANNEL_UPDATE':
+        final channelId = data['id'];
+        _channels[channelId] = data;
+        print('Channel updated: ${data['name']} (ID: $channelId)');
+        bot.triggerChannelUpdate(data);
+        break;
+      case 'CHANNEL_DELETE':
+        final channelId = data['id'];
+        _channels.remove(channelId);
+        print('Channel deleted: ID $channelId');
+        bot.triggerChannelDelete(data);
+        break;
+      default:
+        // Ignore unknown dispatches or add logging if needed
+        break;
+    }
   }
-}
 
   void _startHeartbeat() {
     _heartbeatTimer?.cancel();
     _receivedHeartbeatAck = true;
 
     _heartbeatTimer = Timer.periodic(
-      Duration(milliseconds: _heartbeatInterval!),
+      Duration(milliseconds: _heartbeatInterval ?? 0),
       (_) {
         if (!_receivedHeartbeatAck) {
           print('Heartbeat ACK not received, reconnecting...');
@@ -145,51 +174,63 @@ class DiscordGateway {
 
   void _sendHeartbeat() {
     final payload = {
-      "op": 1,
-      "d": _lastSequence
+      'op': 1,
+      'd': _lastSequence,
     };
-    _ws!.sink.add(jsonEncode(payload));
-    print('Heartbeat sent with sequence $_lastSequence');
+    _ws?.sink.add(jsonEncode(payload));
+    print('Sent heartbeat');
   }
 
   void _identify() {
-    print('Sending Identify payload...');
-    final payload = {
+    final identifyPayload = {
       "op": 2,
       "d": {
         "token": token,
-        "intents": 1 | 512 | 32768, // GUILDS + GUILD_MESSAGES + MESSAGE_CONTENT
+        "intents": 1 | 512 | 32768,
         "properties": {
           "\$os": "linux",
-          "\$browser": "dartcord",
-          "\$device": "dartcord"
+          "\$browser": "disco",
+          "\$device": "disco"
         }
       }
     };
-    _ws!.sink.add(jsonEncode(payload));
+    _ws?.sink.add(jsonEncode(identifyPayload));
+    print('Sent identify');
   }
 
   void _resume() {
-    print('Attempting to resume session...');
-    final payload = {
+    final resumePayload = {
       "op": 6,
       "d": {
         "token": token,
         "session_id": _sessionId,
-        "seq": _lastSequence
+        "seq": _lastSequence,
       }
     };
-    _ws!.sink.add(jsonEncode(payload));
+    _ws?.sink.add(jsonEncode(resumePayload));
+    print('Sent resume');
   }
 
   void _handleDisconnect() {
-    print('Disconnected from Gateway, attempting to reconnect...');
+    print('Disconnected from gateway, reconnecting...');
     _reconnect();
   }
 
-  void _reconnect() async {
+  void _reconnect() {
     _heartbeatTimer?.cancel();
-    await Future.delayed(Duration(seconds: 5)); // wait a bit before reconnect
-    await connect();
+    _ws?.sink.close();
+    _ws = null;
+    _sessionId = null;
+    _lastSequence = null;
+    // Try reconnecting after a short delay
+    Future.delayed(Duration(seconds: 5), () => connect());
   }
+
+  void addOrUpdateChannel(String id, Map<String, dynamic> channelData) {
+  _channels[id] = channelData;
+}
+
+  void removeChannel(String id) {
+  _channels.remove(id);
+}
 }

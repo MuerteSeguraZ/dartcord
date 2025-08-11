@@ -1,16 +1,20 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'gateway.dart';
 
 class DiscordRest {
   final String token;
   final String baseUrl = "https://discord.com/api/v10";
+  final DiscordGateway gateway;
 
-  DiscordRest(this.token);
+  DiscordRest(this.token, this.gateway);
 
   Map<String, String> get _headers => {
         "Authorization": "Bot $token",
         "Content-Type": "application/json",
       };
+
+  // -*- Message Management Functions -*-
 
   Future<void> sendMessage(String channelId, String content, {List<Map<String, dynamic>>? embeds}) async {
     final url = Uri.parse("$baseUrl/channels/$channelId/messages");
@@ -76,10 +80,8 @@ class DiscordRest {
     }
   }
 
-  /// Adds a reaction to a message.
-  /// 
-  /// [emoji] must be URL encoded if it's a unicode emoji.
-  /// For custom emojis use the format: `name:id`
+  // -*- Reaction Management Functions -*-
+
   Future<void> addReaction(String channelId, String messageId, String emoji) async {
     final encodedEmoji = Uri.encodeComponent(emoji);
     final url = Uri.parse("$baseUrl/channels/$channelId/messages/$messageId/reactions/$encodedEmoji/@me");
@@ -91,7 +93,6 @@ class DiscordRest {
     }
   }
 
-  /// Removes a reaction added by the bot user.
   Future<void> removeReaction(String channelId, String messageId, String emoji) async {
     final encodedEmoji = Uri.encodeComponent(emoji);
     final url = Uri.parse("$baseUrl/channels/$channelId/messages/$messageId/reactions/$encodedEmoji/@me");
@@ -102,6 +103,8 @@ class DiscordRest {
       throw Exception("Failed to remove reaction: ${res.body}");
     }
   }
+
+  // -*- Guild Management Functions -*-
 
   Future<Map<String, dynamic>> getGuild(String guildId) async {
   final url = Uri.parse("$baseUrl/guilds/$guildId");
@@ -162,6 +165,8 @@ class DiscordRest {
     throw Exception("Failed to get guild member info: ${res.body}");
   }
 }
+
+// -*- Role Management Functions -*-
 
   Future<Map<String, dynamic>> createRole(String guildId, Map<String, dynamic> roleData) async {
   final url = Uri.parse("$baseUrl/guilds/$guildId/roles");
@@ -225,5 +230,53 @@ class DiscordRest {
   }
 }
 
-  // Placeholder for handling rate limits, retries, etc.
-  // Can add exponential backoff or queueing here later
+  // -*- Channel Management Functions -*-
+  Future<Map<String, dynamic>> createChannel(String guildId, Map<String, dynamic> channelData) async {
+    final url = Uri.parse("$baseUrl/guilds/$guildId/channels");
+
+    final res = await http.post(
+      url,
+      headers: _headers,
+      body: jsonEncode(channelData),
+    );
+
+    if (res.statusCode == 200 || res.statusCode == 201) {
+      return jsonDecode(res.body);
+    } else {
+      throw Exception("Failed to create channel: ${res.body}");
+    }
+  }
+
+  Future<Map<String, dynamic>> modifyChannel(String channelId, Map<String, dynamic> channelData) async {
+  final url = Uri.parse("$baseUrl/channels/$channelId");
+
+  final res = await http.patch(
+    url,
+    headers: _headers,
+    body: jsonEncode(channelData),
+  );
+
+  if (res.statusCode == 200) {
+    return jsonDecode(res.body);
+  } else {
+    throw Exception("Failed to modify channel: ${res.body}");
+  }
+}
+
+  Future<void> deleteChannel(String channelId) async {
+  final response = await http.delete(
+    Uri.parse('https://discord.com/api/channels/$channelId'),
+    headers: {
+      'Authorization': 'Bot $token',
+      'Content-Type': 'application/json',
+    },
+  );
+
+  if (response.statusCode >= 200 && response.statusCode < 300) {
+    // Success - remove from cache
+    gateway.removeChannel(channelId);
+  } else {
+    throw Exception('Failed to delete channel: ${response.body}');
+  }
+}
+}
