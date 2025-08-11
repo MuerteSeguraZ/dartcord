@@ -277,6 +277,142 @@ class DiscordRest {
     gateway.removeChannel(channelId);
   } else {
     throw Exception('Failed to delete channel: ${response.body}');
+    }
+  }
+
+  Future<String> createCategory(String guildId, String name, {int? position}) async {
+    final body = {
+      "name": name,
+      "type": 4,
+    };
+    if (position != null) {
+      body["position"] = position;
+    }
+
+    final response = await http.post(
+      Uri.parse('https://discord.com/api/guilds/$guildId/channels'),
+      headers: {
+        'Authorization': 'Bot $token',
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode(body),
+    );
+
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      final data = jsonDecode(response.body);
+      return data['id'];
+    } else {
+      throw Exception('Failed to create category: ${response.body}');
+    }
+  }
+
+  Future<void> modifyCategory(String categoryId, {String? name, int? position}) async {
+  final body = <String, dynamic>{};
+  if (name != null) body['name'] = name;
+  if (position != null) body['position'] = position;
+
+  final response = await http.patch(
+    Uri.parse('https://discord.com/api/channels/$categoryId'),
+    headers: {
+      'Authorization': 'Bot $token',
+      'Content-Type': 'application/json',
+    },
+    body: jsonEncode(body),
+  );
+
+  if (response.statusCode < 200 || response.statusCode >= 300) {
+    throw Exception('Failed to modify category: ${response.body}');
   }
 }
+
+  Future<void> deleteCategory(String categoryId) async {
+  final response = await http.delete(
+    Uri.parse('https://discord.com/api/channels/$categoryId'),
+    headers: {
+      'Authorization': 'Bot $token',
+      'Content-Type': 'application/json',
+    },
+  );
+
+  if (response.statusCode < 200 || response.statusCode >= 300) {
+    throw Exception('Failed to delete category: ${response.body}');
+  }
+
+  gateway.removeChannel(categoryId); // update your cache accordingly
+}
+
+// -*- Webhook Management Functions -*-
+
+  Future<Map<String, dynamic>> createWebhook(String channelId, String name, {String? avatar}) async {
+  final body = {
+    'name': name,
+  };
+  if (avatar != null) {
+    body['avatar'] = avatar; // base64 encoded image string or null
+  }
+
+  final response = await http.post(
+    Uri.parse('https://discord.com/api/channels/$channelId/webhooks'),
+    headers: {
+      'Authorization': 'Bot $token',
+      'Content-Type': 'application/json',
+    },
+    body: jsonEncode(body),
+  );
+
+  if (response.statusCode < 200 || response.statusCode >= 300) {
+    throw Exception('Failed to create webhook: ${response.body}');
+  }
+
+  return jsonDecode(response.body);
+}
+
+  Future<void> modifyWebhook(String webhookId, {String? name, String? avatar}) async {
+  final body = <String, dynamic>{};
+  if (name != null) body['name'] = name;
+  if (avatar != null) body['avatar'] = avatar;
+
+  final response = await http.patch(
+    Uri.parse('https://discord.com/api/webhooks/$webhookId'),
+    headers: {
+      'Authorization': 'Bot $token',
+      'Content-Type': 'application/json',
+    },
+    body: jsonEncode(body),
+  );
+
+  if (response.statusCode < 200 || response.statusCode >= 300) {
+    throw Exception('Failed to modify webhook: ${response.body}');
+  }
+}
+
+  Future<void> deleteWebhook(String webhookId) async {
+  final response = await http.delete(
+    Uri.parse('https://discord.com/api/webhooks/$webhookId'),
+    headers: {
+      'Authorization': 'Bot $token',
+      'Content-Type': 'application/json',
+    },
+  );
+
+  if (response.statusCode < 200 || response.statusCode >= 300) {
+    throw Exception('Failed to delete webhook: ${response.body}');
+  }
+}
+
+  Future<List<dynamic>> getWebhooks(String channelId) async {
+  final response = await http.get(
+    Uri.parse('https://discord.com/api/channels/$channelId/webhooks'),
+    headers: {
+      'Authorization': 'Bot $token',
+      'Content-Type': 'application/json',
+    },
+  );
+
+  if (response.statusCode < 200 || response.statusCode >= 300) {
+    throw Exception('Failed to fetch webhooks: ${response.body}');
+  }
+
+  return jsonDecode(response.body) as List<dynamic>;
+  }
 }

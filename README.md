@@ -4,10 +4,12 @@
 
 ## Features
 
-* Send, fetch, edit, and delete messages
+* Send, fetch, edit, and delete messages. Embed support included.
 * Add and remove reactions
 * Manage guilds, members, channels, and roles
 * Create, modify, and delete roles and channels
+* Create, modify, and delete categories
+* Create, modify, and delete webhooks
 * Listen to Discord gateway events like messages and bot readiness
 
 ## Requirements
@@ -126,4 +128,16 @@ await bot.rest.removeRoleFromMember(guildId, userId, newRole['id']);
 final newChannel = await bot.rest.createChannel(guildId, {"name": "new-channel"});
 await bot.rest.modifyChannel(newChannel['id'], {"name": "renamed-channel"});
 await bot.rest.deleteChannel(newChannel['id']);
+
+// Category management
+final guildId = "123456789012345678"; // Example guild ID
+final categoryId = "123456789012345678"; // Example category ID
+await bot.rest.createCategory(guildId, {"name": "New Category"});
+await bot.rest.modifyCategory(categoryId, {"name": "Renamed Category"});
+await bot.rest.deleteCategory(categoryId);
+
+// Webhook management
+final webhook = await bot.rest.createWebhook(channelId, {"name": "My Webhook"});
+await bot.rest.modifyWebhook(webhook['id'], {"name": "Updated Webhook"});
+await bot.rest.deleteWebhook(webhook['id']);
 ```
