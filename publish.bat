@@ -3,7 +3,7 @@
 git add --all
 
 set MSG=%1
-if "%MSG%"=="" set MSG=Category and Webhook management update
+if "%MSG%"=="" set MSG=Thread Update
 
 git commit -m "%MSG%"
 

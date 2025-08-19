@@ -148,6 +148,24 @@ class DiscordGateway {
         print('Channel deleted: ID $channelId');
         bot.triggerChannelDelete(data);
         break;
+      case 'THREAD_CREATE':
+        final threadId = data['id'];
+        _channels[threadId] = data;
+        print('Thread created: ${data['name']} (ID: $threadId)');
+        bot.triggerThreadCreate(data);
+        break;
+      case 'THREAD_UPDATE':
+        final threadId = data['id'];
+        _channels[threadId] = data;
+        print('Thread updated: ${data['name']} (ID: $threadId)');
+        bot.triggerThreadUpdate(data);
+        break;
+      case 'THREAD_DELETE':
+        final threadId = data['id'];
+        _channels.remove(threadId);
+        print('Thread deleted: ID $threadId');
+        bot.triggerThreadDelete(data);
+        break;
       default:
         // Ignore unknown dispatches or add logging if needed
         break;

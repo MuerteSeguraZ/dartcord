@@ -141,6 +141,65 @@ class DiscordBot {
   gateway.removeChannel(channelId);
 }
 
+  Future<Map<String, dynamic>> createThread(String channelId, Map<String, dynamic> threadData) async {
+  final thread = await rest.createThread(channelId, threadData);
+  gateway.addOrUpdateChannel(thread['id'], thread); // cache it
+  return thread;
+}
+
+Future<Map<String, dynamic>> getThread(String threadId) async {
+  return await rest.getChannel(threadId);  // threads are channels
+}
+
+Future<Map<String, dynamic>> modifyThread(String threadId, Map<String, dynamic> threadData) async {
+  final thread = await rest.modifyChannel(threadId, threadData);
+  gateway.addOrUpdateChannel(thread['id'], thread);
+  return thread;
+}
+
+Future<void> deleteThread(String threadId) async {
+  try {
+    await rest.deleteChannel(threadId);
+  } catch (e) {
+    print('Warning: deleteThread REST failed: $e');
+  }
+  gateway.removeChannel(threadId);
+}
+
+  Future<void> joinThread(String threadId) async {
+  await rest.joinThread(threadId);
+}
+
+  Future<void> leaveThread(String threadId) async {
+  await rest.leaveThread(threadId);
+}
+
+  Future<void> addThreadMember(String threadId, String userId) async {
+  await rest.addThreadMember(threadId, userId);
+}
+
+  Future<void> removeThreadMember(String threadId, String userId) async {
+  await rest.removeThreadMember(threadId, userId);
+}
+
+  Future<List<dynamic>> listThreadMembers(String threadId) async {
+  return await rest.listThreadMembers(threadId);
+}
+
+   // Event registration helpers for threads
+  void onThreadCreate(EventCallback callback) => on('thread_create', callback);
+  void onThreadUpdate(EventCallback callback) => on('thread_update', callback);
+  void onThreadDelete(EventCallback callback) => on('thread_delete', callback);
+
+  // Event triggers for threads
+  Future<void> triggerThreadCreate(dynamic thread) =>
+      _triggerEvent('thread_create', thread);
+
+  Future<void> triggerThreadUpdate(dynamic thread) =>
+      _triggerEvent('thread_update', thread);
+
+  Future<void> triggerThreadDelete(dynamic thread) =>
+      _triggerEvent('thread_delete', thread);
 
   Future<void> login() async {
     await gateway.connect();

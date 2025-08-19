@@ -273,7 +273,6 @@ class DiscordRest {
   );
 
   if (response.statusCode >= 200 && response.statusCode < 300) {
-    // Success - remove from cache
     gateway.removeChannel(channelId);
   } else {
     throw Exception('Failed to delete channel: ${response.body}');
@@ -338,7 +337,7 @@ class DiscordRest {
     throw Exception('Failed to delete category: ${response.body}');
   }
 
-  gateway.removeChannel(categoryId); // update your cache accordingly
+  gateway.removeChannel(categoryId); 
 }
 
 // -*- Webhook Management Functions -*-
@@ -348,7 +347,7 @@ class DiscordRest {
     'name': name,
   };
   if (avatar != null) {
-    body['avatar'] = avatar; // base64 encoded image string or null
+    body['avatar'] = avatar;
   }
 
   final response = await http.post(
@@ -415,4 +414,259 @@ class DiscordRest {
 
   return jsonDecode(response.body) as List<dynamic>;
   }
+
+  // -*- Thread Management Functions -*-
+
+  Future<Map<String, dynamic>> createThreadFromMessage(
+    String channelId,
+    String messageId, {
+    required String name,
+    int? autoArchiveDuration,
+    int? rateLimitPerUser,
+  }) async {
+  final body = <String, dynamic>{
+    'name': name,
+  };
+  if (autoArchiveDuration != null) body['auto_archive_duration'] = autoArchiveDuration;
+  if (rateLimitPerUser != null) body['rate_limit_per_user'] = rateLimitPerUser;
+
+  final response = await http.post(
+    Uri.parse('https://discord.com/api/channels/$channelId/messages/$messageId/threads'),
+    headers: {
+      'Authorization': 'Bot $token',
+      'Content-Type': 'application/json',
+    },
+    body: jsonEncode(body),
+  );
+
+  if (response.statusCode >= 200 && response.statusCode < 300) {
+    return jsonDecode(response.body);
+  } else {
+    throw Exception('Failed to create thread from message: ${response.body}');
+  }
+}
+
+// 2. Create thread in channel
+Future<Map<String, dynamic>> createThreadInChannel(
+    String channelId, {
+    required String name,
+    int? autoArchiveDuration,
+    int? rateLimitPerUser,
+    String? type, // 'public', 'private', 'news'
+  }) async {
+  final body = <String, dynamic>{
+    'name': name,
+  };
+  if (autoArchiveDuration != null) body['auto_archive_duration'] = autoArchiveDuration;
+  if (rateLimitPerUser != null) body['rate_limit_per_user'] = rateLimitPerUser;
+  if (type != null) {
+    body['type'] = {
+      'public': 11,
+      'private': 12,
+      'news': 10,
+    }[type] ?? 11;
+  }
+
+  final response = await http.post(
+    Uri.parse('https://discord.com/api/channels/$channelId/threads'),
+    headers: {
+      'Authorization': 'Bot $token',
+      'Content-Type': 'application/json',
+    },
+    body: jsonEncode(body),
+  );
+
+  if (response.statusCode >= 200 && response.statusCode < 300) {
+    return jsonDecode(response.body);
+  } else {
+    throw Exception('Failed to create thread in channel: ${response.body}');
+  }
+}
+
+// 3. Join thread
+Future<void> joinThread(String threadId) async {
+  final response = await http.put(
+    Uri.parse('https://discord.com/api/channels/$threadId/thread-members/@me'),
+    headers: {
+      'Authorization': 'Bot $token',
+    },
+  );
+
+  if (response.statusCode < 200 || response.statusCode >= 300) {
+    throw Exception('Failed to join thread: ${response.body}');
+  }
+}
+
+// 4. Leave thread
+Future<void> leaveThread(String threadId) async {
+  final response = await http.delete(
+    Uri.parse('https://discord.com/api/channels/$threadId/thread-members/@me'),
+    headers: {
+      'Authorization': 'Bot $token',
+    },
+  );
+
+  if (response.statusCode < 200 || response.statusCode >= 300) {
+    throw Exception('Failed to leave thread: ${response.body}');
+  }
+}
+
+// 5. Add user to thread
+Future<void> addUserToThread(String threadId, String userId) async {
+  final response = await http.put(
+    Uri.parse('https://discord.com/api/channels/$threadId/thread-members/$userId'),
+    headers: {
+      'Authorization': 'Bot $token',
+    },
+  );
+
+  if (response.statusCode < 200 || response.statusCode >= 300) {
+    throw Exception('Failed to add user to thread: ${response.body}');
+  }
+}
+
+// 6. Remove user from thread
+Future<void> removeUserFromThread(String threadId, String userId) async {
+  final response = await http.delete(
+    Uri.parse('https://discord.com/api/channels/$threadId/thread-members/$userId'),
+    headers: {
+      'Authorization': 'Bot $token',
+    },
+  );
+
+  if (response.statusCode < 200 || response.statusCode >= 300) {
+    throw Exception('Failed to remove user from thread: ${response.body}');
+  }
+}
+
+// 7. List thread members
+Future<List<dynamic>> listThreadMembers(String threadId) async {
+  final response = await http.get(
+    Uri.parse('https://discord.com/api/channels/$threadId/thread-members'),
+    headers: {
+      'Authorization': 'Bot $token',
+    },
+  );
+
+  if (response.statusCode >= 200 && response.statusCode < 300) {
+    return jsonDecode(response.body);
+  } else {
+    throw Exception('Failed to list thread members: ${response.body}');
+  }
+}
+
+// 8. List active threads in a guild
+Future<Map<String, dynamic>> listActiveThreads(String guildId) async {
+  final response = await http.get(
+    Uri.parse('https://discord.com/api/guilds/$guildId/threads/active'),
+    headers: {
+      'Authorization': 'Bot $token',
+    },
+  );
+
+  if (response.statusCode >= 200 && response.statusCode < 300) {
+    return jsonDecode(response.body);
+  } else {
+    throw Exception('Failed to list active threads: ${response.body}');
+  }
+}
+
+// 9. List archived threads (public or private)
+Future<Map<String, dynamic>> listArchivedThreads(
+    String channelId, {
+    bool private = false,
+  }) async {
+  final endpoint = private
+      ? 'https://discord.com/api/channels/$channelId/threads/archived/private'
+      : 'https://discord.com/api/channels/$channelId/threads/archived/public';
+
+  final response = await http.get(
+    Uri.parse(endpoint),
+    headers: {
+      'Authorization': 'Bot $token',
+    },
+  );
+
+  if (response.statusCode >= 200 && response.statusCode < 300) {
+    return jsonDecode(response.body);
+  } else {
+    throw Exception('Failed to list archived threads: ${response.body}');
+  }
+}
+
+// 10. Edit thread metadata
+Future<void> editThread(
+    String threadId, {
+    String? name,
+    int? archivedDuration,
+    bool? locked,
+  }) async {
+  final body = <String, dynamic>{};
+  if (name != null) body['name'] = name;
+  if (archivedDuration != null) body['auto_archive_duration'] = archivedDuration;
+  if (locked != null) body['locked'] = locked;
+
+  final response = await http.patch(
+    Uri.parse('https://discord.com/api/channels/$threadId'),
+    headers: {
+      'Authorization': 'Bot $token',
+      'Content-Type': 'application/json',
+    },
+    body: jsonEncode(body),
+  );
+
+  if (response.statusCode < 200 || response.statusCode >= 300) {
+    throw Exception('Failed to edit thread: ${response.body}');
+  }
+}
+
+// 11. Delete thread (same as deleting channel)
+Future<void> deleteThread(String threadId) async {
+  final response = await http.delete(
+    Uri.parse('https://discord.com/api/channels/$threadId'),
+    headers: {
+      'Authorization': 'Bot $token',
+    },
+  );
+
+  if (response.statusCode < 200 || response.statusCode >= 300) {
+    throw Exception('Failed to delete thread: ${response.body}');
+  }
+
+  gateway.removeChannel(threadId); // optional cache cleanup
+}
+
+  // inside DiscordRest
+Future<Map<String, dynamic>> createThread(String channelId, Map<String, dynamic> threadData) async {
+  return await createThreadInChannel(
+    channelId,
+    name: threadData['name'],
+    autoArchiveDuration: threadData['auto_archive_duration'],
+    rateLimitPerUser: threadData['rate_limit_per_user'],
+    type: threadData['type'],
+  );
+}
+
+Future<Map<String, dynamic>> getChannel(String channelId) async {
+  final response = await http.get(
+    Uri.parse('https://discord.com/api/channels/$channelId'),
+    headers: {
+      'Authorization': 'Bot $token',
+    },
+  );
+  if (response.statusCode >= 200 && response.statusCode < 300) {
+    return jsonDecode(response.body);
+  } else {
+    throw Exception('Failed to get channel: ${response.body}');
+  }
+}
+
+Future<void> addThreadMember(String threadId, String userId) async {
+  return await addUserToThread(threadId, userId);
+}
+
+Future<void> removeThreadMember(String threadId, String userId) async {
+  return await removeUserFromThread(threadId, userId);
+}
+
 }
