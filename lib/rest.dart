@@ -669,4 +669,86 @@ Future<void> removeThreadMember(String threadId, String userId) async {
   return await removeUserFromThread(threadId, userId);
 }
 
+ Future<List<dynamic>> listGuildInvites(String guildId) async {
+    final response = await http.get(
+      Uri.parse('https://discord.com/api/guilds/$guildId/invites'),
+      headers: {'Authorization': 'Bot $token'},
+    );
+
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception('Failed to list invites: ${response.body}');
+    }
+  }
+
+  // 2. List all invites for a channel
+  Future<List<dynamic>> listChannelInvites(String channelId) async {
+    final response = await http.get(
+      Uri.parse('https://discord.com/api/channels/$channelId/invites'),
+      headers: {'Authorization': 'Bot $token'},
+    );
+
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception('Failed to list channel invites: ${response.body}');
+    }
+  }
+
+  // 3. Create an invite
+  Future<Map<String, dynamic>> createInvite(
+    String channelId, {
+    int? maxAge, // seconds until invite expires
+    int? maxUses, // max number of uses
+    bool? temporary, // temporary membership
+    bool? unique, // force unique invite
+  }) async {
+    final body = <String, dynamic>{};
+    if (maxAge != null) body['max_age'] = maxAge;
+    if (maxUses != null) body['max_uses'] = maxUses;
+    if (temporary != null) body['temporary'] = temporary;
+    if (unique != null) body['unique'] = unique;
+
+    final response = await http.post(
+      Uri.parse('https://discord.com/api/channels/$channelId/invites'),
+      headers: {
+        'Authorization': 'Bot $token',
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode(body),
+    );
+
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception('Failed to create invite: ${response.body}');
+    }
+  }
+
+  // 4. Delete an invite
+  Future<void> deleteInvite(String inviteCode) async {
+    final response = await http.delete(
+      Uri.parse('https://discord.com/api/invites/$inviteCode'),
+      headers: {'Authorization': 'Bot $token'},
+    );
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception('Failed to delete invite: ${response.body}');
+    }
+  }
+
+  // 5. Get invite info
+  Future<Map<String, dynamic>> getInvite(String inviteCode) async {
+    final response = await http.get(
+      Uri.parse('https://discord.com/api/invites/$inviteCode'),
+      headers: {'Authorization': 'Bot $token'},
+    );
+
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception('Failed to fetch invite info: ${response.body}');
+    }
+  }
 }

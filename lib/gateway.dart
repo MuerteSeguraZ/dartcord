@@ -166,6 +166,16 @@ class DiscordGateway {
         print('Thread deleted: ID $threadId');
         bot.triggerThreadDelete(data);
         break;
+      case 'INVITE_CREATE':
+        final inviteCode = data['code'];
+        print('Invite created: $inviteCode in channel ${data['channel_id']}');
+        bot.triggerInviteCreate(data);
+        break;
+      case 'INVITE_DELETE':
+        final inviteCode = data['code'];
+        print('Invite deleted: $inviteCode in channel ${data['channel_id']}');
+        bot.triggerInviteDelete(data);
+        break;
       default:
         // Ignore unknown dispatches or add logging if needed
         break;

@@ -201,6 +201,42 @@ Future<void> deleteThread(String threadId) async {
   Future<void> triggerThreadDelete(dynamic thread) =>
       _triggerEvent('thread_delete', thread);
 
+  void onInviteCreate(EventCallback callback) => on('invite_create', callback);
+  void onInviteDelete(EventCallback callback) => on('invite_delete', callback);
+
+  Future<void> triggerInviteCreate(dynamic invite) =>
+      _triggerEvent('invite_create', invite);
+
+  Future<void> triggerInviteDelete(dynamic invite) =>
+      _triggerEvent('invite_delete', invite);
+
+    Future<List<dynamic>> listGuildInvites(String guildId) async {
+    try {
+      return await rest.listGuildInvites(guildId);
+    } catch (e) {
+      print("❌ Failed to list invites for guild $guildId: $e");
+      rethrow;
+    }
+  }
+
+  Future<List<dynamic>> listChannelInvites(String channelId) async {
+    try {
+      return await rest.listChannelInvites(channelId);
+    } catch (e) {
+      print("❌ Failed to list invites for channel $channelId: $e");
+      rethrow;
+    }
+  }
+
+  Future<dynamic> getInvite(String inviteCode) async {
+    try {
+      return await rest.getInvite(inviteCode);
+    } catch (e) {
+      print("❌ Failed to get invite $inviteCode: $e");
+      rethrow;
+    }
+  }
+
   Future<void> login() async {
     await gateway.connect();
   }

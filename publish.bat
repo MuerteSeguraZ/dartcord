@@ -3,7 +3,7 @@
 git add --all
 
 set MSG=%1
-if "%MSG%"=="" set MSG=Thread Update
+if "%MSG%"=="" set MSG=Invite Management Update
 
 git commit -m "%MSG%"
 
